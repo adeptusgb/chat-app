@@ -7,9 +7,13 @@
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 <body>
-    <form hx-post="/">
+    <form hx-post="/" hx-target="#chat" hx-swap="beforeend">
         <input id="message" name="message" type="text">
         <button type="submit">Submit</button>
     </form>
+    <div>
+        <ul id="chat">
+        </ul>    
+    </div>
 </body>
 </html>

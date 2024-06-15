@@ -15,9 +15,9 @@ func main() {
 func handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		http.ServeFile(w, r, "../../web/static/chat.html")
+		http.ServeFile(w, r, "web/static/chat.html")
 	case http.MethodPost:
 		fmt.Printf("got message: { %s } at { %s }\n", r.FormValue("message"), time.Now().Format(time.RFC1123))
-		http.ServeFile(w, r, "../../web/static/chat.html")
+		w.Write([]byte("<h3>" + r.FormValue("message") + "</h3>"))
 	}
 }
