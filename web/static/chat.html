@@ -5,15 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/htmx-ext-ws@2.0.0/ws.js"></script>
 </head>
 <body>
-    <form hx-post="/" hx-target="#chat" hx-swap="beforeend">
-        <input id="message" name="message" type="text">
-        <button type="submit">Submit</button>
-    </form>
-    <div>
-        <ul id="chat">
-        </ul>    
+    
+    <div hx-ext="ws" ws-connect="/chat">
+        <div id="chat">
+
+        </div>
+
+        <form id="form" ws-send>
+            <input id="message" name="message" type="text">
+            <!-- <button type="submit">Submit</button> -->
+        </form>
     </div>
 </body>
 </html>
