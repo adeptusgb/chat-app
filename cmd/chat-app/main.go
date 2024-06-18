@@ -35,11 +35,16 @@ func (wsh webSocketHandler) WSHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("recv: %s\n at: %s", message, time.Now().Format(time.RFC1123))
 
 	var chatMessage chatMessage
-	json.Unmarshal([]byte(message), &chatMessage)
+	err = json.Unmarshal([]byte(message), &chatMessage)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	err = c.WriteMessage(mt, []byte(fmt.Sprintf(`<ul id="chat" hx-swap-oob="beforeend">%s</ul>`, chatMessage.Message)))
 	if err != nil {
 		log.Println(err)
+		return
 	}
 }
 
