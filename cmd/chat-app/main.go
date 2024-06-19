@@ -5,14 +5,22 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 type webSocketHandler struct {
 	upgrader websocket.Upgrader
+	clients  map[*websocket.Conn]bool
 }
+
+func newWebSocketHandler() *webSocketHandler {
+	return &webSocketHandler{
+		upgrader: websocket.Upgrader{},
+		clients:  make(map[*websocket.Conn]bool),
+	}
+}
+
 type chatMessage struct {
 	Message string `json:"message"`
 }
@@ -23,28 +31,38 @@ func (wsh webSocketHandler) WSHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
+	wsh.clients[c] = true
 	defer c.Close()
+	defer delete(wsh.clients, c)
 
-	mt, message, err := c.ReadMessage()
-	if err != nil {
-		log.Println(err)
-	}
-	if message == nil {
-		return
-	}
-	log.Printf("recv: %s\n at: %s", message, time.Now().Format(time.RFC1123))
+	// keep reading messages from the client until the connection is closed
+	for {
+		mt, message, err := c.ReadMessage()
+		if err != nil {
+			log.Println(err)
+			break
+		}
+		if message == nil {
+			continue
+		}
+		log.Printf("recv: %s", message)
 
-	var chatMessage chatMessage
-	err = json.Unmarshal([]byte(message), &chatMessage)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+		var chatMessage chatMessage
+		err = json.Unmarshal(message, &chatMessage)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
 
-	err = c.WriteMessage(mt, []byte(fmt.Sprintf(`<ul id="chat" hx-swap-oob="beforeend">%s</ul>`, chatMessage.Message)))
-	if err != nil {
-		log.Println(err)
-		return
+		// broadcast the message to all clients
+		for client := range wsh.clients {
+			err = client.WriteMessage(mt, []byte(fmt.Sprintf(`<ul id="chat" hx-swap-oob="beforeend">%s</ul>`, chatMessage.Message)))
+			if err != nil {
+				log.Println(err)
+				client.Close()
+				delete(wsh.clients, client)
+			}
+		}
 	}
 }
 
@@ -60,10 +78,9 @@ func init() {
 }
 
 func main() {
-	wsh := webSocketHandler{upgrader: websocket.Upgrader{}}
+	wsh := newWebSocketHandler()
 
 	http.HandleFunc("/chat", wsh.WSHandler)
 	http.HandleFunc("/", homeHandler)
-	http.ListenAndServe(":8000", nil)
 	log.Fatal(http.ListenAndServe(":8000", nil))
 }
