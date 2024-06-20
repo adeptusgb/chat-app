@@ -1,8 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 
@@ -25,6 +26,13 @@ type chatMessage struct {
 	Message string `json:"message"`
 }
 
+type chatMessageTemplate struct {
+	Username string
+	Message  string
+}
+
+var messageTemplate *template.Template
+
 func (wsh webSocketHandler) WSHandler(w http.ResponseWriter, r *http.Request) {
 	c, err := wsh.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -42,7 +50,7 @@ func (wsh webSocketHandler) WSHandler(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 			break
 		}
-		if message == nil {
+		if len(message) == 0 {
 			continue
 		}
 		log.Printf("recv: %s", message)
@@ -54,9 +62,23 @@ func (wsh webSocketHandler) WSHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// broadcast the message to all clients
+		// render the message using the template
+		chatMessageTemplate := chatMessageTemplate{
+			Username: r.RemoteAddr,
+			Message:  chatMessage.Message,
+		}
+
+		var tpl bytes.Buffer
+		if err := messageTemplate.Execute(&tpl, chatMessageTemplate); err != nil {
+			log.Println(err)
+			continue
+		}
+		formattedMessage := tpl.String()
+
+		// broadcast the formatted message to all clients
 		for client := range wsh.clients {
-			err = client.WriteMessage(mt, []byte(fmt.Sprintf(`<ul id="chat" hx-swap-oob="beforeend">%s</ul>`, chatMessage.Message)))
+			err = client.WriteMessage(mt, []byte(formattedMessage))
+
 			if err != nil {
 				log.Println(err)
 				client.Close()
@@ -75,6 +97,12 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 
 func init() {
 	log.Println("Listening on port 8000...")
+
+	var err error
+	messageTemplate, err = template.ParseFiles("web/template/chat-message.html")
+	if err != nil {
+		log.Fatalf("Failed to parse template: %v", err)
+	}
 }
 
 func main() {
