@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>GO Chat!!!</title>
+    <link rel="stylesheet" href="/static/styles.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="https://unpkg.com/htmx-ext-ws@2.0.0/ws.js"></script>
 </head>
 <body>
-    
-    <div hx-ext="ws" ws-connect="/chat">
-        <div id="chat">
-
+    <div class="container">
+        <div class="chat-box" hx-ext="ws" ws-connect="/chat">
+            <div id="chat">
+                
+            </div>
+            <form id="form"  hx-ext="ws" ws-send>
+                <input id="message" name="message" type="text" placeholder="Yap about something..." autocomplete="off">
+            </form>
         </div>
-
-        <form id="form" ws-send>
-            <input id="message" name="message" type="text">
-            <!-- <button type="submit">Submit</button> -->
-        </form>
     </div>
 </body>
 </html>
