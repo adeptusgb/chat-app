@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -32,6 +33,26 @@ type chatMessageTemplate struct {
 }
 
 var messageTemplate *template.Template
+
+func (wsh webSocketHandler) broadcastMessage(mt int, message []byte) {
+	var wg sync.WaitGroup
+
+	for client := range wsh.clients {
+		wg.Add(1)
+		go func(client *websocket.Conn) {
+			defer wg.Done()
+
+			err := client.WriteMessage(mt, message)
+			if err != nil {
+				log.Println(err)
+				client.Close()
+				delete(wsh.clients, client)
+			}
+		}(client)
+	}
+
+	wg.Wait()
+}
 
 func (wsh webSocketHandler) WSHandler(w http.ResponseWriter, r *http.Request) {
 	c, err := wsh.upgrader.Upgrade(w, r, nil)
@@ -75,16 +96,7 @@ func (wsh webSocketHandler) WSHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		formattedMessage := tpl.String()
 
-		// broadcast the formatted message to all clients
-		for client := range wsh.clients {
-			err = client.WriteMessage(mt, []byte(formattedMessage))
-
-			if err != nil {
-				log.Println(err)
-				client.Close()
-				delete(wsh.clients, client)
-			}
-		}
+		wsh.broadcastMessage(mt, []byte(formattedMessage))
 	}
 }
 
